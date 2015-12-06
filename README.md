@@ -113,4 +113,6 @@ If the internet connection breaks while a download continues, currently it crash
 
 Currently the code does not work with "Level Transition - Delta packs". You'll need to keep track of where user is and which map he/she is going to go. Merge those to something like "LevelOne_LevelTwo" and check if you can download that map. If you cannot, use the "LevelTwo" file instead. As I do not need transition deltas in my game I removed the code from my version. Check "MapPakDownloader" if you need deltas, and implement to the code.
 
+You may need to right click the project file and click "Generate Visual Studio project files" as the repository does not contain the Intermediate folder to save space.
+
 The code and blueprint can be improved vastly. I just wanted to show a way for understanding how downloading and mounting a package for HTML games can be accomplished.
