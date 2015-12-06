@@ -111,4 +111,6 @@ You can download a few maps at the same time. But be careful, as the downloads a
 
 If the internet connection breaks while a download continues, currently it crashes the game. In the eyes of UE4, this is a fatal issue. Simply add a another if-else statement in `window.onerror` definition in the html file, to get rid of this fatal issue, or your game will be removed from the scene and downloader will not issue an error (I left the html file as-is, you must change it if you need it).
 
+Currently the code does not work with "Level Transition - Delta packs". You'll need to keep track of where user is and which map he/she is going to go. Merge those to something like "LevelOne_LevelTwo" and check if you can download that map. If you cannot, use the "LevelTwo" file instead. As I do not need transition deltas in my game I removed the code from my version. Check "MapPakDownloader" if you need deltas, and implement to the code.
+
 The code and blueprint can be improved vastly. I just wanted to show a way for understanding how downloading and mounting a package for HTML games can be accomplished.
