@@ -1,0 +1,98 @@
+import airsim
+import numpy as np
+import cv2
+import time
+import matplotlib.pyplot as plt
+
+class AirSimMapDownloader:
+    def __init__(self, client):
+        self.client = client
+        cv2.ocl.setUseOpenCL(False)  # Disable OpenCL to avoid related issues
+
+    def capture_images(self, num_images, altitude=20, delay=1):
+        images = []
+        path = []
+        for i in range(num_images):
+            # Capture image
+            response = self.client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)])[0]
+            img1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8)
+            img_rgb = img1d.reshape(response.height, response.width, 3)
+
+            # Resize image if necessary
+            img_rgb = cv2.resize(img_rgb, (img_rgb.shape[1] // 2, img_rgb.shape[0] // 2))  # Reduce size by half
+
+            images.append(img_rgb)
+
+            # Record the drone's current position
+            state = self.client.getMultirotorState()
+            position = state.kinematics_estimated.position
+            path.append((position.x_val, position.y_val, position.z_val))
+
+            # Move drone forward
+            self.client.moveToPositionAsync(0, i * 5, -altitude, 5).join()  # Smaller increments
+            time.sleep(delay)
+        
+        return images, path
+
+    def stitch_images(self, images):
+        stitcher = cv2.Stitcher_create()
+        (status, stitched) = stitcher.stitch(images)
+        
+        if status == cv2.Stitcher_OK:
+            return stitched
+        else:
+            print(f"Stitching failed with status {status}")
+            # Save individual images for debugging
+            for idx, img in enumerate(images):
+                cv2.imwrite(f"debug_image_{idx}.png", img)
+            raise Exception(f'Stitching failed with status {status}. Check debug images for more details.')
+
+    def save_image(self, image, file_path):
+        cv2.imwrite(file_path, image)
+
+    def plot_path(self, path, map_image_path):
+        # Load the map image
+        map_img = cv2.imread(map_image_path)
+        if map_img is None:
+            raise FileNotFoundError(f"Map image '{map_image_path}' not found.")
+
+        # Convert path to numpy array for plotting
+        path_np = np.array(path)
+        x_coords, y_coords = path_np[:, 0], path_np[:, 1]
+
+        # Plot path on the map
+        plt.figure(figsize=(10, 10))
+        plt.imshow(map_img)
+        plt.plot(x_coords, y_coords, marker='o', color='red', linestyle='-', markersize=5)
+        plt.title('Drone Flight Path')
+        plt.xlabel('X Coordinate')
+        plt.ylabel('Y Coordinate')
+        plt.grid(True)
+        plt.savefig('drone_path_map.png')
+        plt.show()
+
+def main():
+    # Connect to AirSim
+    client = airsim.MultirotorClient()
+    client.confirmConnection()
+    client.enableApiControl(True)
+    client.armDisarm(True)
+    client.takeoffAsync().join()
+
+    downloader = AirSimMapDownloader(client)
+    try:
+        images, path = downloader.capture_images(num_images=20, altitude=20)  # Increase number of images
+        stitched_image = downloader.stitch_images(images)
+        downloader.save_image(stitched_image, 'airsim_2d_map.png')
+        downloader.plot_path(path, 'airsim_2d_map.png')
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    finally:
+        client.landAsync().join()
+        client.armDisarm(False)
+        client.enableApiControl(False)
+
+if __name__ == '__main__':
+    main()
